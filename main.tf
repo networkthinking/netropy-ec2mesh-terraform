@@ -149,39 +149,6 @@ resource "aws_instance" "application2" {
 	}
 }
 
-# resource "aws_instance" "netropy" {
-# 	ami					= data.aws_ami.amazon-linux-2.id
-# 	instance_type		= "t3.small"
-# 	key_name			= var.keyname
-
-# 	network_interface {
-# 		network_interface_id	= aws_network_interface.netropy_mgmt.id
-# 		device_index		= 0
-# 	}
-
-# 	network_interface {
-# 		network_interface_id	= aws_network_interface.netropy_app.id
-# 		device_index		= 1
-# 	}
-
-# 	network_interface {
-# 		network_interface_id	= aws_network_interface.netropy_netropy.id
-# 		device_index		= 2
-# 	}
-
-# 	tags = {
-# 		Name 			= "Netropy Emulator"
-# 	}
-
-# 	user_data = <<-EOT
-# 		#! /bin/bash
-# 		yum install -y iproute-tc
-#         sysctl -w net.ipv4.ip_forward=1
-# 		tc qdisc add dev eth1 root netem delay 100ms
-# 		ip route add 52.52.216.52/32 via 10.10.2.1
-# 	EOT
-# }
-
 data "aws_ami" "netropy" {
 	most_recent	= true
 	name_regex	= "NetropyCE-\\d{1}-\\d{1}"
@@ -258,6 +225,18 @@ resource "aws_eip" "application2" {
 	instance	= aws_instance.application2.id
 }
 
-output "netropy_id" {
-  value = aws_instance.netropy.id
+output "netropy_password" {
+	value = aws_instance.netropy.id
+}
+
+output "netropy_address" {
+	value = "http://${aws_eip.netropy_mgmt.public_ip}"
+}
+
+resource "local_file" "foo" {
+	content = <<-EOT
+		NETROPY_IP=${aws_eip.netropy_mgmt.public_ip}
+		PASSWORD=${aws_instance.netropy.id}
+	EOT
+    filename = "env"
 }
