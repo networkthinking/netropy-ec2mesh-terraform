@@ -1,6 +1,12 @@
-variable "keyname" {
-    type    = string
-}
+variable "keyname" {}
+variable "vpc_cidr" {}
+variable "mgmt_subnet" {}
+variable "application_subnet" {}
+variable "netropy_subnet" {}
+variable "netropy_gateway" {}
+variable "netropy_mgmt_ip" {}
+variable "netropy_app_ip" {}
+variable "netropy_netropy_ip" {}
 
 data "aws_availability_zones" "available" {
 	state	= "available"
@@ -13,7 +19,7 @@ data "aws_ami" "amazon-linux-2" {
 }
 
 resource "aws_vpc" "this" {
-	cidr_block	= "10.10.0.0/16"
+	cidr_block	=  var.vpc_cidr
 	tags 		= {
 		Name 	= "EC2MeshVPC"
 	}
@@ -49,7 +55,7 @@ resource "aws_route_table" "igw" {
 	vpc_id			= aws_vpc.this.id
 
 	route {
-		cidr_block	= "10.10.1.0/24"
+		cidr_block	= var.application_subnet
 		network_interface_id	= aws_network_interface.netropy_netropy.id
 	}
 
@@ -84,7 +90,7 @@ resource "aws_internet_gateway" "this" {
 
 resource "aws_subnet" "mgmt" {
 	availability_zone	= data.aws_availability_zones.available.names[0]
-	cidr_block		= "10.10.0.0/24"
+	cidr_block		= var.mgmt_subnet
 	vpc_id			= aws_vpc.this.id
 	tags 			= {
 		Name 		= "mgmt"
@@ -93,7 +99,7 @@ resource "aws_subnet" "mgmt" {
 
 resource "aws_subnet" "application" {
 	availability_zone	= data.aws_availability_zones.available.names[0]
-	cidr_block		= "10.10.1.0/24"
+	cidr_block		= var.application_subnet
 	vpc_id			= aws_vpc.this.id
 	tags 			= {
 		Name 		= "application"
@@ -102,7 +108,7 @@ resource "aws_subnet" "application" {
 
 resource "aws_subnet" "netropy" {
 	availability_zone	= data.aws_availability_zones.available.names[0]
-	cidr_block		= "10.10.2.0/24"
+	cidr_block		= var.netropy_subnet
 	vpc_id			= aws_vpc.this.id
 	tags 			= {
 		Name 		= "netropy"
@@ -151,8 +157,8 @@ resource "aws_instance" "application2" {
 
 data "aws_ami" "netropy" {
 	most_recent	= true
-	name_regex	= "NetropyCE-\\d{1}-\\d{1}"
-	owners		= ["056058814734"]
+	name_regex	= "^NetropyCE-*"
+	owners		= ["911818005896"]
 }
 
 resource "aws_instance" "netropy" {
@@ -182,7 +188,7 @@ resource "aws_instance" "netropy" {
 
 resource "aws_network_interface" "netropy_mgmt" {
 	subnet_id	= aws_subnet.mgmt.id
-	private_ips	= ["10.10.0.100"]
+	private_ips	= [var.netropy_mgmt_ip]
 	source_dest_check	= false
 	
 	tags 			= {
@@ -192,7 +198,7 @@ resource "aws_network_interface" "netropy_mgmt" {
 
 resource "aws_network_interface" "netropy_app" {
 	subnet_id		= aws_subnet.application.id
-	private_ips		= ["10.10.1.100"]
+	private_ips		= [var.netropy_app_ip]
 	source_dest_check	= false
 		
 	tags 			= {
@@ -202,7 +208,7 @@ resource "aws_network_interface" "netropy_app" {
 
 resource "aws_network_interface" "netropy_netropy" {
 	subnet_id		= aws_subnet.netropy.id
-	private_ips		= ["10.10.2.100"]
+	private_ips		= [var.netropy_netropy_ip]
 	source_dest_check	= false
 		
 	tags 			= {
@@ -237,6 +243,7 @@ resource "local_file" "foo" {
 	content = <<-EOT
 		NETROPY_IP=${aws_eip.netropy_mgmt.public_ip}
 		PASSWORD=${aws_instance.netropy.id}
+		GATEWAY=${var.netropy_gateway}
 	EOT
     filename = "env"
 }
